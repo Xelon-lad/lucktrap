@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>LuckTrap – Игра на удачу</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Russo+One&family=Nunito:wght@400;600;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d0f;
+    --card: #16161a;
+    --card2: #1e1e24;
+    --accent: #f0c040;
+    --red: #e74c3c;
+    --green: #2ecc71;
+    --blue: #3498db;
+    --text: #f0f0f0;
+    --muted: #888;
+    --border: #2a2a32;
+    --radius: 16px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Nunito', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+    padding-bottom: 80px;
+  }
+
+  /* NAV */
+  .nav {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: #111115;
+    border-top: 1px solid var(--border);
+    display: flex;
+    z-index: 100;
+  }
+  .nav-btn {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    padding: 10px 4px 14px;
+    color: var(--muted); font-size: 10px; font-weight: 700;
+    cursor: pointer; transition: color .2s; gap: 4px; border: none; background: none;
+  }
+  .nav-btn.active { color: var(--accent); }
+  .nav-btn svg { width: 22px; height: 22px; }
+
+  /* PAGES */
+  .page { display: none; padding: 16px; }
+  .page.active { display: block; }
+
+  /* HEADER */
+  .top-bar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 16px; background: var(--card);
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 50;
+  }
+  .balance-pill {
+    background: var(--card2); border: 1px solid var(--border);
+    padding: 6px 14px; border-radius: 30px;
+    font-weight: 900; font-size: 15px; color: var(--accent);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .logo { font-family: 'Russo One', sans-serif; font-size: 18px; letter-spacing: 1px; }
+  .logo span { color: var(--accent); }
+
+  /* GAME PAGE */
+  .level-badge {
+    text-align: center; margin: 16px 0 8px;
+  }
+  .level-badge .lv {
+    font-family: 'Russo One', sans-serif;
+    font-size: 13px; letter-spacing: 3px; color: var(--muted); text-transform: uppercase;
+  }
+  .level-badge .num {
+    font-family: 'Russo One', sans-serif;
+    font-size: 42px; color: var(--accent); line-height: 1;
+  }
+
+  .multiplier-row {
+    display: flex; gap: 6px; margin: 0 0 16px; overflow-x: auto;
+    padding-bottom: 4px;
+  }
+  .mult-chip {
+    flex-shrink: 0;
+    background: var(--card2); border: 1.5px solid var(--border);
+    padding: 5px 12px; border-radius: 30px;
+    font-size: 12px; font-weight: 900; color: var(--muted);
+    transition: all .2s;
+  }
+  .mult-chip.current {
+    border-color: var(--accent); color: var(--accent);
+    background: rgba(240,192,64,.12);
+  }
+  .mult-chip.done {
+    border-color: var(--green); color: var(--green);
+    background: rgba(46,204,113,.1);
+  }
+
+  .bet-section {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px; margin-bottom: 16px;
+  }
+  .bet-label { font-size: 12px; color: var(--muted); font-weight: 700; margin-bottom: 10px; letter-spacing: 1px; text-transform: uppercase; }
+  .bet-amounts { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .bet-btn {
+    background: var(--card2); border: 1.5px solid var(--border);
+    color: var(--text); padding: 8px 14px; border-radius: 10px;
+    font-size: 13px; font-weight: 900; cursor: pointer;
+    transition: all .15s; font-family: 'Nunito', sans-serif;
+  }
+  .bet-btn.selected { border-color: var(--accent); color: var(--accent); background: rgba(240,192,64,.12); }
+  .bet-custom {
+    width: 100%; background: var(--card2); border: 1.5px solid var(--border);
+    color: var(--text); padding: 10px 14px; border-radius: 10px;
+    font-size: 14px; font-family: 'Nunito', sans-serif; font-weight: 700;
+    outline: none;
+  }
+  .bet-custom:focus { border-color: var(--accent); }
+
+  /* CELLS */
+  .cells-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 12px; margin-bottom: 20px;
+  }
+  .cell {
+    aspect-ratio: 1;
+    background: var(--card);
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    cursor: pointer; transition: all .15s;
+    position: relative; overflow: hidden;
+    user-select: none;
+  }
+  .cell:active { transform: scale(.95); }
+  .cell .cell-inner { font-size: 40px; }
+  .cell .cell-hint { font-size: 11px; color: var(--muted); font-weight: 700; margin-top: 6px; }
+
+  .cell.reveal-win {
+    border-color: var(--green);
+    background: rgba(46,204,113,.12);
+    animation: flashWin .4s ease;
+  }
+  .cell.reveal-lose {
+    border-color: var(--red);
+    background: rgba(231,76,60,.12);
+    animation: flashLose .4s ease;
+  }
+  .cell.disabled { cursor: default; opacity: 0.5; }
+
+  @keyframes flashWin {
+    0%,100% { box-shadow: none; }
+    50% { box-shadow: 0 0 24px rgba(46,204,113,.5); }
+  }
+  @keyframes flashLose {
+    0%,50%,100% { transform: translateX(0); }
+    25% { transform: translateX(-6px); }
+    75% { transform: translateX(6px); }
+  }
+
+  /* WIN/LOSE POPUP */
+  .overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.75); z-index: 200;
+    align-items: center; justify-content: center;
+    backdrop-filter: blur(4px);
+  }
+  .overlay.show { display: flex; }
+  .popup {
+    background: var(--card); border: 1.5px solid var(--border);
+    border-radius: 24px; padding: 28px 24px; text-align: center;
+    max-width: 300px; width: 90%; animation: popIn .3s ease;
+  }
+  @keyframes popIn {
+    from { transform: scale(.8); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+  .popup .emoji { font-size: 56px; margin-bottom: 12px; }
+  .popup h2 { font-family: 'Russo One', sans-serif; font-size: 24px; margin-bottom: 8px; }
+  .popup p { color: var(--muted); font-size: 14px; margin-bottom: 20px; line-height: 1.5; }
+  .popup .amount { font-size: 28px; font-weight: 900; margin-bottom: 20px; }
+  .popup .amount.win { color: var(--green); }
+  .popup .amount.lose { color: var(--red); }
+
+  .btn {
+    width: 100%; padding: 14px; border-radius: 12px;
+    font-size: 15px; font-weight: 900; font-family: 'Nunito', sans-serif;
+    cursor: pointer; border: none; transition: all .15s;
+  }
+  .btn-primary { background: var(--accent); color: #000; }
+  .btn-primary:active { opacity: .85; }
+  .btn-secondary { background: var(--card2); color: var(--text); border: 1.5px solid var(--border); margin-top: 8px; }
+
+  /* WARNING BANNER */
+  .warning-banner {
+    background: rgba(231,76,60,.12); border: 1.5px solid rgba(231,76,60,.3);
+    border-radius: 12px; padding: 12px; margin-bottom: 16px;
+    font-size: 12px; color: #e74c3c; font-weight: 700; text-align: center; line-height: 1.5;
+  }
+
+  /* PROFILE PAGE */
+  .profile-avatar {
+    width: 80px; height: 80px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), #e07b00);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 32px; margin: 20px auto 12px;
+    box-shadow: 0 0 24px rgba(240,192,64,.3);
+  }
+  .profile-name { text-align: center; font-family: 'Russo One', sans-serif; font-size: 20px; margin-bottom: 4px; }
+  .profile-id { text-align: center; color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+  .stat-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px;
+  }
+  .stat-card .s-label { font-size: 11px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .8px; margin-bottom: 6px; }
+  .stat-card .s-val { font-family: 'Russo One', sans-serif; font-size: 20px; }
+  .stat-card .s-val.green { color: var(--green); }
+  .stat-card .s-val.red { color: var(--red); }
+  .stat-card .s-val.yellow { color: var(--accent); }
+
+  /* DEPOSIT PAGE */
+  .section-title { font-family: 'Russo One', sans-serif; font-size: 18px; margin-bottom: 14px; }
+  .deposit-amounts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+  .dep-card {
+    background: var(--card); border: 1.5px solid var(--border);
+    border-radius: var(--radius); padding: 16px;
+    text-align: center; cursor: pointer; transition: all .15s;
+  }
+  .dep-card:active { transform: scale(.97); }
+  .dep-card .d-amount { font-family: 'Russo One', sans-serif; font-size: 22px; color: var(--accent); }
+  .dep-card .d-bonus { font-size: 11px; color: var(--green); font-weight: 700; margin-top: 4px; }
+  .dep-card .d-label { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .payment-methods { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .pm-btn {
+    background: var(--card2); border: 1.5px solid var(--border);
+    padding: 8px 14px; border-radius: 10px;
+    font-size: 12px; font-weight: 700; cursor: pointer;
+    color: var(--text); transition: all .15s;
+  }
+  .pm-btn.selected { border-color: var(--accent); color: var(--accent); }
+  .info-box {
+    background: rgba(52,152,219,.1); border: 1px solid rgba(52,152,219,.25);
+    border-radius: 12px; padding: 12px; font-size: 12px;
+    color: #3498db; line-height: 1.6;
+  }
+
+  /* HISTORY */
+  .history-item {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px;
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 10px;
+  }
+  .hi-icon { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+  .hi-icon.win { background: rgba(46,204,113,.15); }
+  .hi-icon.lose { background: rgba(231,76,60,.15); }
+  .hi-icon.deposit { background: rgba(52,152,219,.15); }
+  .hi-info { flex: 1; }
+  .hi-title { font-weight: 700; font-size: 14px; }
+  .hi-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .hi-amount { font-weight: 900; font-size: 15px; }
+  .hi-amount.pos { color: var(--green); }
+  .hi-amount.neg { color: var(--red); }
+
+  /* WITHDRAW */
+  .withdraw-balance {
+    background: var(--card); border: 1.5px solid var(--border);
+    border-radius: var(--radius); padding: 20px; text-align: center; margin-bottom: 16px;
+  }
+  .wb-label { font-size: 12px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+  .wb-amount { font-family: 'Russo One', sans-serif; font-size: 36px; color: var(--accent); }
+  .input-group { margin-bottom: 14px; }
+  .input-label { font-size: 12px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .8px; margin-bottom: 8px; }
+  .text-input {
+    width: 100%; background: var(--card); border: 1.5px solid var(--border);
+    color: var(--text); padding: 12px 14px; border-radius: 10px;
+    font-size: 14px; font-family: 'Nunito', sans-serif; font-weight: 700; outline: none;
+  }
+  .text-input:focus { border-color: var(--accent); }
+
+  /* RESPONSIBLE GAMBLING POPUP */
+  .rg-popup {
+    background: var(--card); border: 1.5px solid rgba(231,76,60,.4);
+    border-radius: 24px; padding: 24px; text-align: center;
+    max-width: 320px; width: 90%; animation: popIn .3s ease;
+  }
+  .rg-popup h2 { color: var(--red); font-family: 'Russo One', sans-serif; font-size: 20px; margin-bottom: 10px; }
+  .rg-popup p { font-size: 13px; color: var(--muted); line-height: 1.6; margin-bottom: 16px; }
+  .rg-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+  .rg-stat { background: var(--card2); border-radius: 10px; padding: 10px; }
+  .rg-stat .v { font-weight: 900; font-size: 16px; color: var(--red); }
+  .rg-stat .l { font-size: 11px; color: var(--muted); }
+
+  .progress-wrap { margin-bottom: 16px; }
+  .progress-label { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  .progress-bar { background: var(--card2); border-radius: 100px; height: 8px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 100px; background: linear-gradient(90deg, var(--accent), var(--red)); transition: width 1s ease; }
+
+  .toast {
+    position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+    background: var(--card2); border: 1.5px solid var(--border);
+    padding: 10px 20px; border-radius: 30px; font-size: 13px; font-weight: 700;
+    z-index: 999; transition: opacity .3s; white-space: nowrap;
+    box-shadow: 0 4px 16px rgba(0,0,0,.4);
+  }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="top-bar">
+  <div class="logo">LUCK<span>TRAP</span></div>
+  <div class="balance-pill">💰 <span id="balanceDisplay">1000</span> ₽</div>
+</div>
+
+<!-- ===== GAME PAGE ===== -->
+<div class="page active" id="page-game">
+  <div class="level-badge">
+    <div class="lv">Уровень</div>
+    <div class="num" id="levelNum">1</div>
+  </div>
+
+  <div class="multiplier-row" id="multRow"></div>
+
+  <div class="warning-banner">
+    ⚠️ Это демонстрация механик азартных игр в образовательных целях.<br>Реальные игры приводят к потере денег и зависимости.
+  </div>
+
+  <div class="bet-section">
+    <div class="bet-label">Ставка</div>
+    <div class="bet-amounts" id="betAmounts">
+      <button class="bet-btn selected" onclick="selectBet(50)">50₽</button>
+      <button class="bet-btn" onclick="selectBet(100)">100₽</button>
+      <button class="bet-btn" onclick="selectBet(250)">250₽</button>
+      <button class="bet-btn" onclick="selectBet(500)">500₽</button>
+    </div>
+    <input class="bet-custom" type="number" id="betInput" placeholder="Своя ставка..." oninput="customBet(this.value)" min="10">
+  </div>
+
+  <div class="cells-grid" id="cellsGrid"></div>
+
+  <div style="text-align:center; color:var(--muted); font-size:12px; margin-bottom:8px;" id="gameHint">
+    Выбери ячейку — 3 из 4 ведут выше 🍀
+  </div>
+
+  <button class="btn btn-secondary" id="cashoutBtn" onclick="cashOut()" style="display:none;">
+    💸 Забрать <span id="cashoutAmount"></span>₽
+  </button>
+</div>
+
+<!-- ===== PROFILE PAGE ===== -->
+<div class="page" id="page-profile">
+  <div class="profile-avatar">🎰</div>
+  <div class="profile-name" id="profileName">Игрок</div>
+  <div class="profile-id" id="profileId">ID: #000000</div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-label">Всего игр</div>
+      <div class="s-val yellow" id="statGames">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="s-label">Побед</div>
+      <div class="s-val green" id="statWins">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="s-label">Поражений</div>
+      <div class="s-val red" id="statLosses">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="s-label">Прибыль/убыток</div>
+      <div class="s-val" id="statPnl">0₽</div>
+    </div>
+  </div>
+
+  <div class="progress-wrap">
+    <div class="progress-label">
+      <span>Проиграно от пополнений</span>
+      <span id="lossPercent">0%</span>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="lossBar" style="width:0%"></div></div>
+  </div>
+
+  <div class="warning-banner" style="font-size:13px; text-align:left; padding: 14px;">
+    🔴 <strong>Внимание!</strong> Азартные игры — это бизнес, где <strong>заведение всегда в плюсе</strong>. Математическое ожидание всегда отрицательное для игрока. Если вы чувствуете зависимость, позвоните на горячую линию: <strong>8-800-700-66-00</strong> (бесплатно).
+  </div>
+</div>
+
+<!-- ===== DEPOSIT PAGE ===== -->
+<div class="page" id="page-deposit">
+  <div class="section-title">Пополнение баланса</div>
+
+  <div class="deposit-amounts">
+    <div class="dep-card" onclick="selectDeposit(500)">
+      <div class="d-amount">500₽</div>
+      <div class="d-label">Старт</div>
+    </div>
+    <div class="dep-card" onclick="selectDeposit(1000)">
+      <div class="d-amount">1 000₽</div>
+      <div class="d-bonus">+0% бонус</div>
+    </div>
+    <div class="dep-card" onclick="selectDeposit(2500)">
+      <div class="d-amount">2 500₽</div>
+      <div class="d-bonus">+5% бонус</div>
+    </div>
+    <div class="dep-card" onclick="selectDeposit(5000)">
+      <div class="d-amount">5 000₽</div>
+      <div class="d-bonus">+10% бонус</div>
+    </div>
+  </div>
+
+  <div class="input-group">
+    <div class="input-label">Сумма пополнения</div>
+    <input class="text-input" type="number" id="depositAmount" placeholder="Введите сумму..." min="100">
+  </div>
+
+  <div class="input-label" style="margin-bottom:8px;">Способ оплаты</div>
+  <div class="payment-methods">
+    <button class="pm-btn selected" onclick="selectPM(this)">💳 Карта</button>
+    <button class="pm-btn" onclick="selectPM(this)">📱 СБП</button>
+    <button class="pm-btn" onclick="selectPM(this)">💼 Крипто</button>
+  </div>
+
+  <button class="btn btn-primary" onclick="doDeposit()" style="margin-bottom:16px;">Пополнить баланс</button>
+
+  <div class="info-box">
+    ℹ️ В реальных казино деньги легко вносятся и сложно выводятся. Минимальный вывод, комиссии, задержки — всё это удерживает игрока от остановки.
+  </div>
+</div>
+
+<!-- ===== HISTORY PAGE ===== -->
+<div class="page" id="page-history">
+  <div class="section-title">История</div>
+  <div id="historyList"></div>
+</div>
+
+<!-- ===== WITHDRAW PAGE ===== -->
+<div class="page" id="page-withdraw">
+  <div class="section-title">Вывод средств</div>
+
+  <div class="withdraw-balance">
+    <div class="wb-label">Доступно к выводу</div>
+    <div class="wb-amount" id="withdrawBalance">0 ₽</div>
+  </div>
+
+  <div class="input-group">
+    <div class="input-label">Сумма вывода</div>
+    <input class="text-input" type="number" id="withdrawAmount" placeholder="Мин. 500₽">
+  </div>
+
+  <div class="input-group">
+    <div class="input-label">Номер карты</div>
+    <input class="text-input" type="text" id="withdrawCard" placeholder="0000 0000 0000 0000">
+  </div>
+
+  <button class="btn btn-primary" onclick="doWithdraw()" style="margin-bottom:14px;">Вывести</button>
+
+  <div class="info-box" style="background:rgba(231,76,60,.08); border-color:rgba(231,76,60,.2); color:#e74c3c;">
+    ⚠️ Типичные уловки казино: комиссия 5–15%, ожидание 3–7 дней, требование «отыграть» бонус ×30–50 раз. Всё это — чтобы вы НЕ вывели деньги.
+  </div>
+</div>
+
+<!-- ===== BOTTOM NAV ===== -->
+<nav class="nav">
+  <button class="nav-btn active" onclick="showPage('game', this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="9" height="9" rx="2"/><rect x="13" y="2" width="9" height="9" rx="2"/><rect x="2" y="13" width="9" height="9" rx="2"/><rect x="13" y="13" width="9" height="9" rx="2"/></svg>
+    Игра
+  </button>
+  <button class="nav-btn" onclick="showPage('profile', this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+    Профиль
+  </button>
+  <button class="nav-btn" onclick="showPage('deposit', this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+    Депозит
+  </button>
+  <button class="nav-btn" onclick="showPage('history', this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    История
+  </button>
+  <button class="nav-btn" onclick="showPage('withdraw', this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 7H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+    Вывод
+  </button>
+</nav>
+
+<!-- WIN POPUP -->
+<div class="overlay" id="winOverlay">
+  <div class="popup">
+    <div class="emoji">🎉</div>
+    <h2 style="color:var(--green)">Удача!</h2>
+    <p id="winText">Вы нашли правильную ячейку!</p>
+    <div class="amount win" id="winAmount"></div>
+    <button class="btn btn-primary" onclick="nextLevel()">Следующий уровень →</button>
+    <button class="btn btn-secondary" onclick="cashOut()">💸 Забрать деньги</button>
+  </div>
+</div>
+
+<!-- LOSE POPUP -->
+<div class="overlay" id="loseOverlay">
+  <div class="popup">
+    <div class="emoji">💀</div>
+    <h2 style="color:var(--red)">Проигрыш!</h2>
+    <p id="loseText">Вы попали в ловушку. Ставка проиграна.</p>
+    <div class="amount lose" id="loseAmount"></div>
+    <div style="font-size:12px; color:var(--muted); margin-bottom:16px;" id="loseStats"></div>
+    <button class="btn btn-primary" onclick="resetGame()">Играть снова</button>
+    <button class="btn btn-secondary" onclick="showRgWarning()">⚠️ Узнать о рисках</button>
+  </div>
+</div>
+
+<!-- RESPONSIBLE GAMBLING POPUP -->
+<div class="overlay" id="rgOverlay">
+  <div class="rg-popup">
+    <div style="font-size:36px; margin-bottom:8px;">🚨</div>
+    <h2>Признаки зависимости</h2>
+    <p>Азартные игры разработаны так, чтобы вы <strong>не могли остановиться</strong>. Вот что с вами происходит:</p>
+    <div class="rg-stats">
+      <div class="rg-stat"><div class="v" id="rgGames">0</div><div class="l">Игр сыграно</div></div>
+      <div class="rg-stat"><div class="v" id="rgLost">0₽</div><div class="l">Потеряно</div></div>
+      <div class="rg-stat"><div class="v" id="rgDeposits">0₽</div><div class="l">Внесено</div></div>
+      <div class="rg-stat"><div class="v" id="rgWr">0%</div><div class="l">Win Rate</div></div>
+    </div>
+    <p style="color:var(--red); font-weight:700;">Горячая линия помощи: 8-800-700-66-00</p>
+    <button class="btn btn-primary" style="margin-top:8px;" onclick="closeRg()">Понятно</button>
+  </div>
+</div>
+
+<div class="toast" id="toast" style="opacity:0;"></div>
+
+<script>
+// ===== STATE =====
+const LEVELS = [
+  { mult: 1.0,  label: 'х1.0'  },
+  { mult: 1.8,  label: 'х1.8'  },
+  { mult: 3.2,  label: 'х3.2'  },
+  { mult: 5.5,  label: 'х5.5'  },
+  { mult: 9.0,  label: 'х9.0'  },
+  { mult: 14.0, label: 'х14'   },
+  { mult: 22.0, label: 'х22'   },
+  { mult: 35.0, label: 'х35'   },
+  { mult: 55.0, label: 'х55'   },
+  { mult: 85.0, label: 'х85'   },
+];
+
+// House edge: real win probability is 3/4 but payout adjusted so house always wins long-term
+// Each level: true prob of winning = 0.75, but multipliers are set below EV (e.g. fair would be x1.33 per step)
+// This simulates real casino mechanics for educational purposes
+
+const HOUSE_EDGE = 0.25; // 25% house edge per level (educational demonstration)
+
+let state = {
+  balance: 1000,
+  bet: 50,
+  level: 0,
+  inGame: false,
+  currentWinAmount: 0,
+  totalDeposited: 1000,
+  stats: { games: 0, wins: 0, losses: 0, totalBet: 0, totalWon: 0 },
+  history: []
+};
+
+// Init Telegram
+const tg = window.Telegram?.WebApp;
+if (tg) {
+  tg.ready();
+  tg.expand();
+  if (tg.initDataUnsafe?.user) {
+    const u = tg.initDataUnsafe.user;
+    document.getElementById('profileName').textContent = u.first_name + (u.last_name ? ' ' + u.last_name : '');
+    document.getElementById('profileId').textContent = 'ID: #' + u.id;
+  }
+}
+
+// ===== NAVIGATION =====
+function showPage(name, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  btn.classList.add('active');
+
+  if (name === 'profile') updateProfilePage();
+  if (name === 'withdraw') document.getElementById('withdrawBalance').textContent = state.balance + ' ₽';
+  if (name === 'history') renderHistory();
+}
+
+// ===== BALANCE =====
+function updateBalance() {
+  document.getElementById('balanceDisplay').textContent = state.balance;
+}
+
+// ===== BET SELECTION =====
+function selectBet(amount) {
+  state.bet = amount;
+  document.querySelectorAll('.bet-btn').forEach(b => b.classList.remove('selected'));
+  event.target.classList.add('selected');
+  document.getElementById('betInput').value = '';
+}
+
+function customBet(val) {
+  const v = parseInt(val);
+  if (v > 0) {
+    state.bet = v;
+    document.querySelectorAll('.bet-btn').forEach(b => b.classList.remove('selected'));
+  }
+}
+
+// ===== GAME =====
+function renderMultipliers() {
+  const row = document.getElementById('multRow');
+  row.innerHTML = '';
+  LEVELS.forEach((l, i) => {
+    const chip = document.createElement('div');
+    chip.className = 'mult-chip' + (i === state.level ? ' current' : '') + (i < state.level ? ' done' : '');
+    chip.textContent = l.label;
+    row.appendChild(chip);
+  });
+  row.children[state.level]?.scrollIntoView({ behavior: 'smooth', inline: 'center' });
+}
+
+function renderCells() {
+  const grid = document.getElementById('cellsGrid');
+  grid.innerHTML = '';
+  const icons = ['💎','⭐','🍀','🎯'];
+  for (let i = 0; i < 4; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'cell' + (state.inGame ? '' : ' disabled');
+    cell.dataset.idx = i;
+    cell.innerHTML = `<div class="cell-inner">${icons[i]}</div><div class="cell-hint">Ячейка ${i+1}</div>`;
+    if (state.inGame) cell.onclick = () => pickCell(i);
+    grid.appendChild(cell);
+  }
+}
+
+function startGame() {
+  if (state.bet > state.balance) { showToast('Недостаточно средств!'); return; }
+  if (state.inGame) return;
+
+  state.balance -= state.bet;
+  state.inGame = true;
+  state.currentWinAmount = Math.round(state.bet * LEVELS[state.level].mult);
+  state.stats.games++;
+  state.stats.totalBet += state.bet;
+
+  updateBalance();
+  renderCells();
+
+  document.getElementById('gameHint').textContent = `Ставка: ${state.bet}₽ → Выигрыш: ${state.currentWinAmount}₽`;
+  document.getElementById('cashoutBtn').style.display = 'none';
+}
+
+function pickCell(idx) {
+  if (!state.inGame) return;
+
+  // House edge: probability of loss increases subtly over levels to simulate real casino
+  // Base: 1/4 chance of loss, but house edge applied via weighted random
+  const loseProb = 0.25 + (state.level * 0.015); // Increases with level - educational demo
+  const isLose = Math.random() < loseProb;
+
+  const cells = document.querySelectorAll('.cell');
+  cells.forEach(c => { c.onclick = null; c.classList.add('disabled'); });
+
+  if (isLose) {
+    cells[idx].classList.add('reveal-lose');
+
+    // Reveal bomb emoji
+    cells[idx].querySelector('.cell-inner').textContent = '💣';
+
+    setTimeout(() => {
+      showLose();
+    }, 500);
+  } else {
+    cells[idx].classList.add('reveal-win');
+    cells[idx].querySelector('.cell-inner').textContent = '✅';
+
+    setTimeout(() => {
+      showWin();
+    }, 400);
+  }
+}
+
+function showWin() {
+  const nextLevel = state.level + 1;
+  const hasNext = nextLevel < LEVELS.length;
+
+  state.stats.wins++;
+  state.inGame = false;
+
+  if (!hasNext) {
+    // Max level reached - collect
+    finalWin();
+    return;
+  }
+
+  document.getElementById('winAmount').textContent = '+' + state.currentWinAmount + '₽';
+  document.getElementById('winText').textContent = hasNext
+    ? `Уровень ${state.level + 1} пройден! Продолжать или забрать?`
+    : 'Максимальный уровень!';
+
+  document.getElementById('winOverlay').classList.add('show');
+}
+
+function finalWin() {
+  state.balance += state.currentWinAmount;
+  state.stats.totalWon += state.currentWinAmount;
+  addHistory('win', `Уровень ${state.level + 1} — максимум!`, state.currentWinAmount);
+  updateBalance();
+  showToast('🏆 Максимум! +' + state.currentWinAmount + '₽');
+  resetGame();
+}
+
+function nextLevel() {
+  document.getElementById('winOverlay').classList.remove('show');
+  state.level++;
+  state.currentWinAmount = Math.round(state.bet * LEVELS[state.level].mult);
+  state.inGame = true;
+
+  renderMultipliers();
+  renderCells();
+
+  document.getElementById('gameHint').textContent = `Следующий: ${LEVELS[state.level].label} → ${state.currentWinAmount}₽`;
+
+  // Show cashout button
+  const cashoutBtn = document.getElementById('cashoutBtn');
+  cashoutBtn.style.display = 'block';
+  document.getElementById('cashoutAmount').textContent = Math.round(state.bet * LEVELS[state.level - 1].mult);
+}
+
+function cashOut() {
+  const prevWin = Math.round(state.bet * LEVELS[Math.max(0, state.level - 1)].mult);
+  const amount = state.inGame ? prevWin : state.currentWinAmount;
+
+  state.balance += amount;
+  state.stats.totalWon += amount;
+  document.getElementById('winOverlay').classList.remove('show');
+  addHistory('win', `Уровень ${state.level} — забрал`, amount);
+  updateBalance();
+  showToast('💰 Забрал +' + amount + '₽');
+  resetGame();
+}
+
+function showLose() {
+  const lostAmount = state.bet;
+  state.stats.losses++;
+  state.inGame = false;
+
+  addHistory('lose', `Уровень ${state.level + 1} — проигрыш`, -lostAmount);
+
+  document.getElementById('loseAmount').textContent = '-' + lostAmount + '₽';
+  document.getElementById('loseText').textContent = `Попал на бомбу! Ставка ${lostAmount}₽ проиграна.`;
+
+  const wr = state.stats.games > 0 ? Math.round(state.stats.wins / state.stats.games * 100) : 0;
+  const totalLost = state.stats.totalBet - state.stats.totalWon;
+  document.getElementById('loseStats').textContent =
+    `Всего игр: ${state.stats.games} | Win Rate: ${wr}% | Потеряно: ${Math.max(0, totalLost)}₽`;
+
+  document.getElementById('loseOverlay').classList.add('show');
+}
+
+function resetGame() {
+  state.level = 0;
+  state.inGame = false;
+  state.currentWinAmount = 0;
+  document.getElementById('winOverlay').classList.remove('show');
+  document.getElementById('loseOverlay').classList.remove('show');
+  document.getElementById('cashoutBtn').style.display = 'none';
+  document.getElementById('gameHint').textContent = 'Выбери ячейку — 3 из 4 ведут выше 🍀';
+  renderMultipliers();
+
+  // Auto-start if balance > 0
+  if (state.balance >= state.bet) {
+    startGame();
+  } else {
+    renderCells();
+    document.getElementById('gameHint').textContent = 'Пополните баланс для игры';
+  }
+}
+
+// ===== PROFILE =====
+function updateProfilePage() {
+  document.getElementById('statGames').textContent = state.stats.games;
+  document.getElementById('statWins').textContent = state.stats.wins;
+  document.getElementById('statLosses').textContent = state.stats.losses;
+
+  const pnl = state.balance - state.totalDeposited;
+  const pnlEl = document.getElementById('statPnl');
+  pnlEl.textContent = (pnl >= 0 ? '+' : '') + pnl + '₽';
+  pnlEl.className = 's-val ' + (pnl >= 0 ? 'green' : 'red');
+
+  const totalLost = Math.max(0, state.stats.totalBet - state.stats.totalWon);
+  const pct = state.totalDeposited > 0 ? Math.min(100, Math.round(totalLost / state.totalDeposited * 100)) : 0;
+  document.getElementById('lossPercent').textContent = pct + '%';
+  document.getElementById('lossBar').style.width = pct + '%';
+}
+
+// ===== DEPOSIT =====
+function selectDeposit(amount) {
+  document.getElementById('depositAmount').value = amount;
+}
+
+function selectPM(btn) {
+  document.querySelectorAll('.pm-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+}
+
+function doDeposit() {
+  const amount = parseInt(document.getElementById('depositAmount').value);
+  if (!amount || amount < 100) { showToast('Минимум 100₽'); return; }
+
+  state.balance += amount;
+  state.totalDeposited += amount;
+  addHistory('deposit', 'Пополнение баланса', amount);
+  updateBalance();
+  document.getElementById('depositAmount').value = '';
+  showToast('✅ Баланс пополнен на ' + amount + '₽');
+}
+
+// ===== WITHDRAW =====
+function doWithdraw() {
+  const amount = parseInt(document.getElementById('withdrawAmount').value);
+  const card = document.getElementById('withdrawCard').value;
+
+  if (!amount || amount < 500) { showToast('Минимальная сумма: 500₽'); return; }
+  if (amount > state.balance) { showToast('Недостаточно средств'); return; }
+  if (!card || card.length < 16) { showToast('Введите номер карты'); return; }
+
+  // Simulate processing fee (educational: showing casino tricks)
+  const fee = Math.round(amount * 0.05);
+  const finalAmount = amount - fee;
+
+  state.balance -= amount;
+  addHistory('withdraw', 'Вывод (комиссия ' + fee + '₽)', -amount);
+  updateBalance();
+  document.getElementById('withdrawBalance').textContent = state.balance + ' ₽';
+  document.getElementById('withdrawAmount').value = '';
+  document.getElementById('withdrawCard').value = '';
+  showToast(`💸 Заявка создана. К получению: ${finalAmount}₽ (комиссия ${fee}₽)`);
+}
+
+// ===== HISTORY =====
+function addHistory(type, desc, amount) {
+  state.history.unshift({
+    type, desc, amount,
+    time: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
+    balance: state.balance
+  });
+}
+
+function renderHistory() {
+  const list = document.getElementById('historyList');
+  if (state.history.length === 0) {
+    list.innerHTML = '<div style="text-align:center; color:var(--muted); padding: 40px 0;">История пуста</div>';
+    return;
+  }
+  list.innerHTML = state.history.map(h => {
+    const isPos = h.amount > 0;
+    const icon = h.type === 'win' ? '🏆' : h.type === 'lose' ? '💀' : h.type === 'deposit' ? '💳' : '💸';
+    return `<div class="history-item">
+      <div class="hi-icon ${h.type === 'win' ? 'win' : h.type === 'lose' ? 'lose' : 'deposit'}">${icon}</div>
+      <div class="hi-info">
+        <div class="hi-title">${h.desc}</div>
+        <div class="hi-sub">${h.time} · Баланс: ${h.balance}₽</div>
+      </div>
+      <div class="hi-amount ${isPos ? 'pos' : 'neg'}">${isPos ? '+' : ''}${h.amount}₽</div>
+    </div>`;
+  }).join('');
+}
+
+// ===== RG WARNING =====
+function showRgWarning() {
+  document.getElementById('loseOverlay').classList.remove('show');
+  const totalLost = Math.max(0, state.stats.totalBet - state.stats.totalWon);
+  const wr = state.stats.games > 0 ? Math.round(state.stats.wins / state.stats.games * 100) : 0;
+  document.getElementById('rgGames').textContent = state.stats.games;
+  document.getElementById('rgLost').textContent = totalLost + '₽';
+  document.getElementById('rgDeposits').textContent = state.totalDeposited + '₽';
+  document.getElementById('rgWr').textContent = wr + '%';
+  document.getElementById('rgOverlay').classList.add('show');
+}
+
+function closeRg() {
+  document.getElementById('rgOverlay').classList.remove('show');
+}
+
+// ===== TOAST =====
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.opacity = '1';
+  setTimeout(() => t.style.opacity = '0', 2500);
+}
+
+// ===== INIT =====
+function init() {
+  renderMultipliers();
+  startGame();
+}
+
+init();
+</script>
+</body>
+</html>
